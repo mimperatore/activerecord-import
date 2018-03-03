@@ -10,6 +10,7 @@ module ActiveRecord::Import::MysqlAdapter
   def insert_many( sql, values, options = {}, *args ) # :nodoc:
     # the number of inserts default
     number_of_inserts = 0
+    ids = []
 
     base_sql, post_sql = if sql.is_a?( String )
       [sql, '']
@@ -34,7 +35,8 @@ module ActiveRecord::Import::MysqlAdapter
     if NO_MAX_PACKET == max || total_bytes <= max || options[:force_single_insert]
       number_of_inserts += 1
       sql2insert = base_sql + values.join( ',' ) + post_sql
-      insert( sql2insert, *args )
+      first_id = insert( sql2insert, *args )
+      ids += (first_id..(first_id+@connection.affected_rows-1)).to_a
     else
       value_sets = ::ActiveRecord::Import::ValueSetsBytesParser.parse(values,
         reserved_bytes: sql_size,
@@ -44,12 +46,13 @@ module ActiveRecord::Import::MysqlAdapter
         value_sets.each do |value_set|
           number_of_inserts += 1
           sql2insert = base_sql + value_set.join( ',' ) + post_sql
-          insert( sql2insert, *args )
+          first_id = insert( sql2insert, *args )
+          ids += (first_id..(first_id+@connection.affected_rows-1)).to_a
         end
       end
     end
 
-    ActiveRecord::Import::Result.new([], number_of_inserts, [], [])
+    ActiveRecord::Import::Result.new([], number_of_inserts, ids, [])
   end
 
   # Returns the maximum number of bytes that the server will allow
@@ -128,5 +131,9 @@ module ActiveRecord::Import::MysqlAdapter
     if locking_column.present?
       results << "#{table_name}.`#{locking_column}`=`#{locking_column}`+1"
     end
+  end
+
+  def supports_setting_primary_key_of_imported_objects?
+    true
   end
 end
