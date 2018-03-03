@@ -52,7 +52,7 @@ module ActiveRecord::Import::MysqlAdapter
       end
     end
 
-    ActiveRecord::Import::Result.new([], number_of_inserts, ids, [])
+    ActiveRecord::Import::Result.new([], number_of_inserts, [], [])
   end
 
   # Returns the maximum number of bytes that the server will allow
